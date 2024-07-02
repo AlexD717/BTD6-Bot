@@ -4,6 +4,31 @@ import time
 import keyboard
 import random
 import win32api, win32con
+from enum import Enum
+
+class PlacableTower(Enum):
+    Dart_Monkey = 0
+    Bomb_Shooter = 1
+    Sniper_Monkey = 2
+    Wizard_Monkey = 3
+    Ninja_Monkey = 4
+    Druid_Monkey = 5
+
+class TowerCard():
+    def __init__(self, type: PlacableTower, cords, scrollAmount, colorInt, colorAmount, colorCheckOffset):
+        self.type = type
+        self.cords = cords
+        self.scrollAmount = scrollAmount
+        self.colorInt = colorInt
+        self.colorAmount = colorAmount
+        self.colorCheckOffset = colorCheckOffset
+
+placableTowers = []
+placableTowers.append(TowerCard(PlacableTower.Dart_Monkey, [1791, 178], 0, 2, 200, 0))
+placableTowers.append(TowerCard(PlacableTower.Bomb_Shooter, [1865, 305], 0, 2, 200, -50))
+placableTowers.append(TowerCard(PlacableTower.Sniper_Monkey, [1786, 586], 0, 1, 200, 5))
+
+
 
 class Tower():
     def __init__(self, cords):
@@ -41,23 +66,37 @@ def startRound():
     else:
         print("Can't start round")
 
-def cantPlaceTower():
+def cantPlaceTower(zOffset):
     x, y = win32api.GetCursorPos()
-    if (pyautogui.pixel(x, y)[2] == 255):
+    if (pyautogui.pixel(x, y + zOffset)[2] == 255):
         return False
     else:
         return True
 
-def selectTower():
-    if (pyautogui.pixel(1791, 178)[2] >= 200):
-            click(1791, 178)
-            win32api.SetCursorPos((random.randint(minX, maxX), random.randint(minY, maxY)))
-            placeTower()
+def canBuyTower(towerPlacing: TowerCard):
+    if (pyautogui.pixel(towerPlacing.cords[0], towerPlacing.cords[1])[towerPlacing.colorInt] >= towerPlacing.colorAmount):
+        click(towerPlacing.cords[0], towerPlacing.cords[1])
+        win32api.SetCursorPos((random.randint(minX, maxX), random.randint(minY, maxY)))
+        placeTower(towerPlacing)
+        return True
+    return False
 
-def placeTower():
+def selectTower():
+    towerPlacing = random.choice(placableTowers)
+    print(f"Trying to place {towerPlacing.type}")
+    roundActive = True  
+    placed = False
+    while roundActive and not placed:
+        placed = canBuyTower(towerPlacing)
+        if (roundReadyToStart()):
+            roundActive = False
+            placed = canBuyTower(towerPlacing)
+        
+
+def placeTower(towerPlacing: TowerCard):
     tries = 0
-    maxTries = 10
-    while cantPlaceTower() and tries < maxTries:
+    maxTries = 20
+    while cantPlaceTower(towerPlacing.colorCheckOffset) and tries < maxTries:
         win32api.SetCursorPos((random.randint(minX, maxX), random.randint(minY, maxY)))
         time.sleep(0.3)
         tries += 1
@@ -120,10 +159,10 @@ def tryUpgrade(x, y, tower: Tower, upgrade):
             return True
     return False
 
-minX = 90
-maxX = 1550
-minY = 100
-maxY = 1000
+minX = 338
+maxX = 1296
+minY = 350
+maxY = 826
 
 wave = 0
 placeTowerChance = 1 # Between 0 and 1
@@ -132,6 +171,7 @@ towers = []
 
 # Main function loop
 while True:
+    print("Deciding What to Do")
     if (random.random() <= placeTowerChance):
         selectTower()
     else:
@@ -143,5 +183,5 @@ while True:
             click(1824, 994)
         wave += 1
         if (wave % 2 == 0):
-            placeTowerChance *= 0.8
+            placeTowerChance *= 0.9
             print(f"Place Tower Chance: {round(placeTowerChance, 2)}")
